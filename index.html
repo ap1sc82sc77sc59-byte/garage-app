@@ -2,23 +2,32 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>Garage CBR</title>
+<title>CBR Garage OS</title>
 <style>
 body{
   font-family: Arial;
-  background:#111;
+  background:#0d0d0d;
   color:white;
   text-align:center;
 }
 
 h1{
   font-style:italic;
-  font-size:28px;
-  letter-spacing:2px;
+  font-size:30px;
   color:red;
+  letter-spacing:3px;
 }
 
-select,input,button{
+.section{
+  margin:20px auto;
+  padding:15px;
+  border:1px solid #333;
+  border-radius:10px;
+  width:90%;
+  max-width:600px;
+}
+
+input,select,button{
   padding:8px;
   margin:5px;
   border-radius:5px;
@@ -29,65 +38,128 @@ button{
   background:red;
   color:white;
   font-weight:bold;
+  cursor:pointer;
 }
 
-.low{
-  color:red;
-  font-weight:bold;
-}
+.low{ color:red; font-weight:bold; }
 
 .part{color:#ff4d4d;}
 .chemical{color:#bb66ff;}
 .oil{color:#3399ff;}
 .consume{color:#ffaa33;}
 
+.alert{color:red;font-weight:bold;}
+
 img{
-  max-width:90%;
-  margin:10px;
+  max-width:100%;
   border-radius:10px;
+  margin-top:10px;
 }
 </style>
 </head>
 
 <body>
 
-<h1>CBR GARAGE</h1>
+<h1>CBR GARAGE OS</h1>
 
+<div class="section">
+<h2>🏍 バイク画像</h2>
 <input type="file" id="bikeImage">
 <br>
 <img id="preview">
+</div>
 
-<hr>
+<div class="section">
+<h2>📊 走行距離管理</h2>
+現在走行距離:
+<input type="number" id="currentKm">
+<button onclick="saveCurrentKm()">保存</button>
+<p id="maintenanceStatus"></p>
+</div>
 
+<div class="section">
+<h2>🔧 メンテ記録</h2>
+<select id="maintType">
+  <option value="oil">オイル</option>
+  <option value="chain">チェーン</option>
+  <option value="pad">ブレーキパッド</option>
+  <option value="fluid">ブレーキフルード</option>
+</select>
+前回交換距離:
+<input type="number" id="maintKm">
+<button onclick="saveMaintenance()">記録</button>
+</div>
+
+<div class="section">
+<h2>📦 在庫管理</h2>
 <select id="category">
   <option value="part">部品</option>
   <option value="chemical">ケミカル</option>
   <option value="oil">オイル</option>
   <option value="consume">消耗品</option>
 </select>
-
 <input type="text" id="name" placeholder="品名">
 <input type="number" id="qty" placeholder="数量">
 <button onclick="addItem()">追加</button>
-
 <ul id="list"></ul>
+</div>
 
 <script>
 let items = JSON.parse(localStorage.getItem("garageItems")) || [];
+let maintenance = JSON.parse(localStorage.getItem("maintenance")) || {};
+let currentKm = localStorage.getItem("currentKm") || 0;
 
-function save(){
-  localStorage.setItem("garageItems", JSON.stringify(items));
+const intervals = {
+  oil:3000,
+  chain:1000,
+  pad:5000,
+  fluid:10000
+};
+
+function saveCurrentKm(){
+  currentKm=document.getElementById("currentKm").value;
+  localStorage.setItem("currentKm",currentKm);
+  checkMaintenance();
+}
+
+function saveMaintenance(){
+  const type=document.getElementById("maintType").value;
+  const km=document.getElementById("maintKm").value;
+  maintenance[type]=km;
+  localStorage.setItem("maintenance",JSON.stringify(maintenance));
+  checkMaintenance();
+}
+
+function checkMaintenance(){
+  let status="";
+  for(let type in intervals){
+    if(maintenance[type]){
+      let next=parseInt(maintenance[type])+intervals[type];
+      let remain=next-currentKm;
+      status+= type+" 次回:"+next+"km ";
+      if(remain<=0){
+        status+="<span class='alert'>交換時期！</span><br>";
+      }else{
+        status+="残り"+remain+"km<br>";
+      }
+    }
+  }
+  document.getElementById("maintenanceStatus").innerHTML=status;
+}
+
+function saveItems(){
+  localStorage.setItem("garageItems",JSON.stringify(items));
 }
 
 function render(){
-  const list = document.getElementById("list");
+  const list=document.getElementById("list");
   list.innerHTML="";
   items.forEach((item,i)=>{
     const li=document.createElement("li");
     li.className=item.category;
-    li.innerHTML = item.name + " : " + 
-      (item.qty<=1 ? "<span class='low'>"+item.qty+" ⚠</span>" : item.qty)
-      + " <button onclick='removeItem("+i+")'>削除</button>";
+    li.innerHTML=item.name+" : "+
+    (item.qty<=1?"<span class='low'>"+item.qty+" ⚠</span>":item.qty)
+    +" <button onclick='removeItem("+i+")'>削除</button>";
     list.appendChild(li);
   });
 }
@@ -98,13 +170,13 @@ function addItem(){
   const qty=parseInt(document.getElementById("qty").value);
   if(!name||!qty)return;
   items.push({category,name,qty});
-  save();
+  saveItems();
   render();
 }
 
 function removeItem(i){
   items.splice(i,1);
-  save();
+  saveItems();
   render();
 }
 
@@ -122,7 +194,9 @@ if(savedImage){
   document.getElementById("preview").src=savedImage;
 }
 
+document.getElementById("currentKm").value=currentKm;
 render();
+checkMaintenance();
 </script>
 
 </body>
