@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>🏍 ULTIMATE GARAGE</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+body{
+  font-family:Arial;
+  background:#0a0a0a;
+  color:white;
+  text-align:center;
+  margin:0;
+  padding:20px;
+}
+h1{
+  color:#ff0000;
+  letter-spacing:2px;
+}
+.card{
+  background:#151515;
+  padding:20px;
+  margin:20px auto;
+  border-radius:15px;
+  max-width:400px;
+  box-shadow:0 0 25px rgba(255,0,0,0.5);
+}
+button{
+  padding:10px 15px;
+  margin:5px;
+  border:none;
+  border-radius:8px;
+  background:#cc0000;
+  color:white;
+  font-weight:bold;
+}
+button:hover{ background:#ff1a1a; }
+input,select{
+  padding:8px;
+  margin:5px;
+  border-radius:6px;
+  border:none;
+}
+.big{ font-size:22px; margin:10px 0; }
+.warning{ color:#ff4444; font-weight:bold; }
+.ok{ color:#00cc66; }
+.log{
+  text-align:left;
+  font-size:14px;
+  max-height:120px;
+  overflow:auto;
+  background:#111;
+  padding:10px;
+  border-radius:8px;
+}
+canvas{
+  background:#111;
+  border-radius:10px;
+}
+</style>
+</head>
+<body>
+
+<h1>🏍 ULTIMATE GARAGE</h1>
+
+<div class="card">
+<h2>🏁 バイク管理</h2>
+<select id="bikeSelect" onchange="changeBike()"></select><br>
+<input type="text" id="newBike" placeholder="新しいバイク名">
+<button onclick="addBike()">追加</button>
+<button onclick="deleteBike()">削除</button>
+</div>
+
+<div class="card">
+<h2>📦 在庫</h2>
+<div class="big">在庫: <span id="stock">0</span></div>
+<input type="number" id="stockInput" placeholder="数量">
+<button onclick="addStock()">追加</button>
+<button onclick="useStock()">使用</button>
+<div id="stockWarning"></div>
+</div>
+
+<div class="card">
+<h2>📍 走行距離</h2>
+<div class="big"><span id="distance">0</span> km</div>
+<input type="number" id="distanceInput" placeholder="走行距離">
+<button onclick="addDistance()">加算</button>
+<button onclick="resetDistance()">リセット</button>
+<canvas id="distanceChart"></canvas>
+</div>
+
+<div class="card">
+<h2>🛢 オイル交換</h2>
+<input type="number" id="oilCycle" placeholder="交換サイクルkm">
+<button onclick="saveOilCycle()">保存</button>
+<div id="oilStatus"></div>
+</div>
+
+<div class="card">
+<h2>📖 メンテ履歴</h2>
+<div id="log" class="log"></div>
+</div>
+
+<script>
+let currentBike = localStorage.getItem("currentBike") || "CBR";
+let chart;
+
+function getKey(key){ return currentBike+"_"+key; }
+
+function initBikes(){
+  let bikes = JSON.parse(localStorage.getItem("bikes")) || ["CBR"];
+  let select = document.getElementById("bikeSelect");
+  select.innerHTML="";
+  bikes.forEach(b=>{
+    let opt=document.createElement("option");
+    opt.value=b; opt.text=b;
+    select.appendChild(opt);
+  });
+  select.value=currentBike;
+}
+
+function addBike(){
+  let name=document.getElementById("newBike").value;
+  if(!name) return;
+  let bikes=JSON.parse(localStorage.getItem("bikes"))||["CBR"];
+  bikes.push(name);
+  localStorage.setItem("bikes",JSON.stringify(bikes));
+  initBikes();
+}
+
+function deleteBike(){
+  let bikes=JSON.parse(localStorage.getItem("bikes"))||["CBR"];
+  bikes=bikes.filter(b=>b!==currentBike);
+  localStorage.setItem("bikes",JSON.stringify(bikes));
+  currentBike=bikes[0]||"CBR";
+  localStorage.setItem("currentBike",currentBike);
+  initBikes();
+  loadData();
+}
+
+function changeBike(){
+  currentBike=document.getElementById("bikeSelect").value;
+  localStorage.setItem("currentBike",currentBike);
+  loadData();
+}
+
+function logAction(text){
+  let logs=JSON.parse(localStorage.getItem(getKey("log")))||[];
+  logs.unshift(new Date().toLocaleString()+" - "+text);
+  localStorage.setItem(getKey("log"),JSON.stringify(logs));
+}
+
+function addStock(){
+  let val=parseInt(stockInput.value); if(!val)return;
+  let stock=parseInt(localStorage.getItem(getKey("stock")))||0;
+  stock+=val;
+  localStorage.setItem(getKey("stock"),stock);
+  logAction("在庫+"+val);
+  loadData();
+}
+
+function useStock(){
+  let stock=parseInt(localStorage.getItem(getKey("stock")))||0;
+  if(stock>0){ stock--; logAction("在庫-1"); }
+  localStorage.setItem(getKey("stock"),stock);
+  loadData();
+}
+
+function addDistance(){
+  let val=parseInt(distanceInput.value); if(!val)return;
+  let distance=parseInt(localStorage.getItem(getKey("distance")))||0;
+  distance+=val;
+  localStorage.setItem(getKey("distance"),distance);
+  let history=JSON.parse(localStorage.getItem(getKey("history")))||[];
+  history.push(distance);
+  localStorage.setItem(getKey("history"),JSON.stringify(history));
+  logAction(val+"km走行");
+  loadData();
+}
+
+function resetDistance(){
+  if(confirm("距離リセット？")){
+    localStorage.setItem(getKey("distance"),0);
+    logAction("距離リセット");
+    loadData();
+  }
+}
+
+function saveOilCycle(){
+  localStorage.setItem(getKey("oilCycle"),oilCycle.value);
+  loadData();
+}
+
+function loadData(){
+  let stock=parseInt(localStorage.getItem(getKey("stock")))||0;
+  let distance=parseInt(localStorage.getItem(getKey("distance")))||0;
+  let oil=parseInt(localStorage.getItem(getKey("oilCycle")))||0;
+  let logs=JSON.parse(localStorage.getItem(getKey("log")))||[];
+  let history=JSON.parse(localStorage.getItem(getKey("history")))||[];
+
+  stock.innerText=stock;
+  document.getElementById("distance").innerText=distance;
+  document.getElementById("oilCycle").value=oil;
+
+  document.getElementById("stockWarning").innerHTML=
+    stock==0?"<div class='warning'>🚨 在庫ゼロ</div>":
+    stock==1?"<div class='warning'>⚠ 残り1個</div>":"";
+
+  document.getElementById("oilStatus").innerHTML=
+    oil>0?(distance>=oil?
+    "<div class='warning'>🚨 交換時期！</div>":
+    "<div class='ok'>次回まで "+(oil-distance)+"km</div>"):"";
+
+  document.getElementById("log").innerHTML=logs.join("<br>");
+
+  if(chart) chart.destroy();
+  chart=new Chart(distanceChart,{
+    type:"line",
+    data:{
+      labels:history.map((_,i)=>i+1),
+      datasets:[{
+        label:"走行距離推移",
+        data:history,
+        borderColor:"red",
+        fill:false
+      }]
+    }
+  });
+}
+
+initBikes();
+loadData();
+</script>
+
+</body>
+</html>
