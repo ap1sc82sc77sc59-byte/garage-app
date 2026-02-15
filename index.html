@@ -2,35 +2,49 @@
 <html>
 <head>
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>CBR Garage OS</title>
+
 <style>
 body{
-  font-family: Arial;
-  background:#0d0d0d;
+  font-family: Arial, sans-serif;
+  background:#0a0a0a;
   color:white;
-  text-align:center;
+  margin:0;
+  padding:10px;
+  font-size:18px;
 }
 
 h1{
+  text-align:center;
   font-style:italic;
-  font-size:30px;
+  font-size:32px;
   color:red;
   letter-spacing:3px;
+  margin-bottom:10px;
 }
 
 .section{
-  margin:20px auto;
+  background:#111;
+  margin:15px auto;
   padding:15px;
-  border:1px solid #333;
-  border-radius:10px;
-  width:90%;
-  max-width:600px;
+  border-radius:12px;
+  border:1px solid #222;
+}
+
+h2{
+  margin-top:0;
+  font-size:20px;
+  border-left:5px solid red;
+  padding-left:8px;
 }
 
 input,select,button{
-  padding:8px;
-  margin:5px;
-  border-radius:5px;
+  width:100%;
+  font-size:18px;
+  padding:12px;
+  margin:8px 0;
+  border-radius:8px;
   border:none;
 }
 
@@ -38,17 +52,37 @@ button{
   background:red;
   color:white;
   font-weight:bold;
-  cursor:pointer;
+}
+
+button:active{
+  transform:scale(0.97);
 }
 
 .low{ color:red; font-weight:bold; }
+
+.alertBar{
+  background:red;
+  padding:10px;
+  text-align:center;
+  font-weight:bold;
+  margin-bottom:10px;
+  border-radius:8px;
+}
 
 .part{color:#ff4d4d;}
 .chemical{color:#bb66ff;}
 .oil{color:#3399ff;}
 .consume{color:#ffaa33;}
 
-.alert{color:red;font-weight:bold;}
+ul{
+  list-style:none;
+  padding:0;
+}
+
+li{
+  padding:8px 0;
+  border-bottom:1px solid #222;
+}
 
 img{
   max-width:100%;
@@ -62,30 +96,31 @@ img{
 
 <h1>CBR GARAGE OS</h1>
 
+<div id="alertArea"></div>
+
 <div class="section">
 <h2>🏍 バイク画像</h2>
 <input type="file" id="bikeImage">
-<br>
 <img id="preview">
 </div>
 
 <div class="section">
-<h2>📊 走行距離管理</h2>
-現在走行距離:
+<h2>📊 走行距離</h2>
+現在走行距離 (km)
 <input type="number" id="currentKm">
 <button onclick="saveCurrentKm()">保存</button>
 <p id="maintenanceStatus"></p>
 </div>
 
 <div class="section">
-<h2>🔧 メンテ記録</h2>
+<h2>🔧 メンテナンス記録</h2>
 <select id="maintType">
   <option value="oil">オイル</option>
   <option value="chain">チェーン</option>
   <option value="pad">ブレーキパッド</option>
   <option value="fluid">ブレーキフルード</option>
 </select>
-前回交換距離:
+前回交換距離 (km)
 <input type="number" id="maintKm">
 <button onclick="saveMaintenance()">記録</button>
 </div>
@@ -98,8 +133,10 @@ img{
   <option value="oil">オイル</option>
   <option value="consume">消耗品</option>
 </select>
-<input type="text" id="name" placeholder="品名">
-<input type="number" id="qty" placeholder="数量">
+品名
+<input type="text" id="name">
+数量
+<input type="number" id="qty">
 <button onclick="addItem()">追加</button>
 <ul id="list"></ul>
 </div>
@@ -115,6 +152,15 @@ const intervals = {
   pad:5000,
   fluid:10000
 };
+
+function typeName(t){
+  return {
+    oil:"オイル",
+    chain:"チェーン",
+    pad:"ブレーキパッド",
+    fluid:"ブレーキフルード"
+  }[t];
+}
 
 function saveCurrentKm(){
   currentKm=document.getElementById("currentKm").value;
@@ -132,19 +178,22 @@ function saveMaintenance(){
 
 function checkMaintenance(){
   let status="";
+  let alertMsg="";
   for(let type in intervals){
     if(maintenance[type]){
       let next=parseInt(maintenance[type])+intervals[type];
       let remain=next-currentKm;
-      status+= type+" 次回:"+next+"km ";
+      status+= typeName(type)+" 次回:"+next+"km / ";
       if(remain<=0){
-        status+="<span class='alert'>交換時期！</span><br>";
+        alertMsg+= typeName(type)+" 交換時期です！ ";
       }else{
         status+="残り"+remain+"km<br>";
       }
     }
   }
   document.getElementById("maintenanceStatus").innerHTML=status;
+  document.getElementById("alertArea").innerHTML=
+    alertMsg ? "<div class='alertBar'>⚠ "+alertMsg+"</div>" : "";
 }
 
 function saveItems(){
