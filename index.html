@@ -1,251 +1,153 @@
 <!DOCTYPE html>
-<html>
-<head>
+<html lang="ja">
+<head> 
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#ff0000">
+<link rel="apple-touch-icon" href="icon.png">
+<link rel="stylesheet" href="style.css">
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>CBR Garage OS</title>
+<title>Bike Manager</title>
 
 <style>
-body{
-  font-family: Arial, sans-serif;
-  background:#0a0a0a;
-  color:white;
-  margin:0;
-  padding:10px;
-  font-size:18px;
+body {
+  font-family: sans-serif;
+  font-size: 18px;
+  margin: 10px;
+  background: #111;
+  color: #fff;
+<script>
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('service-worker.js');
+}
+</script>
 }
 
-h1{
-  text-align:center;
-  font-style:italic;
-  font-size:32px;
-  color:red;
-  letter-spacing:3px;
-  margin-bottom:10px;
+/* ヘッダー */
+.header {
+  text-align: center;
+  font-size: 24px;
+  font-weight: bold;
+  margin-bottom: 10px;
 }
 
-.section{
-  background:#111;
-  margin:15px auto;
-  padding:15px;
-  border-radius:12px;
-  border:1px solid #222;
+/* 警告 */
+.alert {
+  background: #330000;
+  padding: 10px;
+  margin-bottom: 10px;
+  border-radius: 8px;
 }
 
-h2{
-  margin-top:0;
-  font-size:20px;
-  border-left:5px solid red;
-  padding-left:8px;
+/* 入力 */
+input, select {
+  width: 100%;
+  height: 44px;
+  font-size: 18px;
+  margin-bottom: 10px;
+  border-radius: 6px;
+  border: none;
+  padding: 5px;
 }
 
-input,select,button{
-  width:100%;
-  font-size:18px;
-  padding:12px;
-  margin:8px 0;
-  border-radius:8px;
-  border:none;
+button {
+  width: 100%;
+  height: 48px;
+  font-size: 18px;
+  margin-bottom: 10px;
+  border-radius: 8px;
+  border: none;
+  background: red;
+  color: white;
 }
 
-button{
-  background:red;
-  color:white;
-  font-weight:bold;
+/* 履歴 */
+.log {
+  background: #222;
+  padding: 10px;
+  margin-bottom: 8px;
+  border-radius: 6px;
 }
 
-button:active{
-  transform:scale(0.97);
-}
+/* カテゴリ色 */
+.oil { color: #4da6ff; }
+.parts { color: #aaa; }
+.chemical { color: #66ff99; }
+.consumable { color: #ff6666; }
 
-.low{ color:red; font-weight:bold; }
-
-.alertBar{
-  background:red;
-  padding:10px;
-  text-align:center;
-  font-weight:bold;
-  margin-bottom:10px;
-  border-radius:8px;
-}
-
-.part{color:#ff4d4d;}
-.chemical{color:#bb66ff;}
-.oil{color:#3399ff;}
-.consume{color:#ffaa33;}
-
-ul{
-  list-style:none;
-  padding:0;
-}
-
-li{
-  padding:8px 0;
-  border-bottom:1px solid #222;
-}
-
-img{
-  max-width:100%;
-  border-radius:10px;
-  margin-top:10px;
-}
 </style>
 </head>
 
 <body>
 
-<h1>CBR GARAGE OS</h1>
+<div class="header">CBR Maintenance Log</div>
 
-<div id="alertArea"></div>
+<div id="alert" class="alert"></div>
 
-<div class="section">
-<h2>🏍 バイク画像</h2>
-<input type="file" id="bikeImage">
-<img id="preview">
-</div>
-
-<div class="section">
-<h2>📊 走行距離</h2>
-現在走行距離 (km)
-<input type="number" id="currentKm">
-<button onclick="saveCurrentKm()">保存</button>
-<p id="maintenanceStatus"></p>
-</div>
-
-<div class="section">
-<h2>🔧 メンテナンス記録</h2>
-<select id="maintType">
-  <option value="oil">オイル</option>
-  <option value="chain">チェーン</option>
-  <option value="pad">ブレーキパッド</option>
-  <option value="fluid">ブレーキフルード</option>
+<select id="part">
+  <option>オイル</option>
+  <option>チェーン</option>
+  <option>ブレーキパッド</option>
+  <option>ブレーキフルード</option>
 </select>
-前回交換距離 (km)
-<input type="number" id="maintKm">
-<button onclick="saveMaintenance()">記録</button>
-</div>
 
-<div class="section">
-<h2>📦 在庫管理</h2>
-<select id="category">
-  <option value="part">部品</option>
-  <option value="chemical">ケミカル</option>
-  <option value="oil">オイル</option>
-  <option value="consume">消耗品</option>
-</select>
-品名
-<input type="text" id="name">
-数量
-<input type="number" id="qty">
-<button onclick="addItem()">追加</button>
-<ul id="list"></ul>
-</div>
+<input type="number" id="qty" placeholder="数量（+ or -）">
+
+<input type="date" id="date">
+
+<input type="text" id="note" placeholder="メモ">
+
+<button onclick="save()">保存</button>
+
+<h3>履歴</h3>
+<div id="logs"></div>
 
 <script>
-let items = JSON.parse(localStorage.getItem("garageItems")) || [];
-let maintenance = JSON.parse(localStorage.getItem("maintenance")) || {};
-let currentKm = localStorage.getItem("currentKm") || 0;
+let logs = JSON.parse(localStorage.getItem("logs")) || [];
 
-const intervals = {
-  oil:3000,
-  chain:1000,
-  pad:5000,
-  fluid:10000
-};
+function save() {
+  const part = document.getElementById("part").value;
+  const qty = Number(document.getElementById("qty").value);
+  const date = document.getElementById("date").value;
+  const note = document.getElementById("note").value;
 
-function typeName(t){
-  return {
-    oil:"オイル",
-    chain:"チェーン",
-    pad:"ブレーキパッド",
-    fluid:"ブレーキフルード"
-  }[t];
+  logs.push({ part, qty, date, note });
+
+  localStorage.setItem("logs", JSON.stringify(logs));
+  render();
 }
 
-function saveCurrentKm(){
-  currentKm=document.getElementById("currentKm").value;
-  localStorage.setItem("currentKm",currentKm);
-  checkMaintenance();
+function getStock(part) {
+  return logs
+    .filter(l => l.part === part)
+    .reduce((sum, l) => sum + l.qty, 0);
 }
 
-function saveMaintenance(){
-  const type=document.getElementById("maintType").value;
-  const km=document.getElementById("maintKm").value;
-  maintenance[type]=km;
-  localStorage.setItem("maintenance",JSON.stringify(maintenance));
-  checkMaintenance();
-}
+function render() {
+  const logDiv = document.getElementById("logs");
+  const alertDiv = document.getElementById("alert");
 
-function checkMaintenance(){
-  let status="";
-  let alertMsg="";
-  for(let type in intervals){
-    if(maintenance[type]){
-      let next=parseInt(maintenance[type])+intervals[type];
-      let remain=next-currentKm;
-      status+= typeName(type)+" 次回:"+next+"km / ";
-      if(remain<=0){
-        alertMsg+= typeName(type)+" 交換時期です！ ";
-      }else{
-        status+="残り"+remain+"km<br>";
-      }
+  logDiv.innerHTML = "";
+  alertDiv.innerHTML = "";
+
+  logs.slice().reverse().forEach(l => {
+    const div = document.createElement("div");
+    div.className = "log";
+    div.innerHTML = `
+      ${l.date} / ${l.part} / ${l.qty} / ${l.note}
+    `;
+    logDiv.appendChild(div);
+  });
+
+  // 在庫チェック
+  const parts = ["オイル", "チェーン", "ブレーキパッド", "ブレーキフルード"];
+  parts.forEach(p => {
+    if (getStock(p) <= 1) {
+      alertDiv.innerHTML += `⚠ ${p} 在庫少ない<br>`;
     }
-  }
-  document.getElementById("maintenanceStatus").innerHTML=status;
-  document.getElementById("alertArea").innerHTML=
-    alertMsg ? "<div class='alertBar'>⚠ "+alertMsg+"</div>" : "";
-}
-
-function saveItems(){
-  localStorage.setItem("garageItems",JSON.stringify(items));
-}
-
-function render(){
-  const list=document.getElementById("list");
-  list.innerHTML="";
-  items.forEach((item,i)=>{
-    const li=document.createElement("li");
-    li.className=item.category;
-    li.innerHTML=item.name+" : "+
-    (item.qty<=1?"<span class='low'>"+item.qty+" ⚠</span>":item.qty)
-    +" <button onclick='removeItem("+i+")'>削除</button>";
-    list.appendChild(li);
   });
 }
 
-function addItem(){
-  const category=document.getElementById("category").value;
-  const name=document.getElementById("name").value;
-  const qty=parseInt(document.getElementById("qty").value);
-  if(!name||!qty)return;
-  items.push({category,name,qty});
-  saveItems();
-  render();
-}
-
-function removeItem(i){
-  items.splice(i,1);
-  saveItems();
-  render();
-}
-
-document.getElementById("bikeImage").addEventListener("change",function(e){
-  const reader=new FileReader();
-  reader.onload=function(){
-    document.getElementById("preview").src=reader.result;
-    localStorage.setItem("bikeImage",reader.result);
-  }
-  reader.readAsDataURL(e.target.files[0]);
-});
-
-const savedImage=localStorage.getItem("bikeImage");
-if(savedImage){
-  document.getElementById("preview").src=savedImage;
-}
-
-document.getElementById("currentKm").value=currentKm;
 render();
-checkMaintenance();
 </script>
 
 </body>
